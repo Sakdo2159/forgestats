@@ -317,6 +317,29 @@ header h1 svg { fill: var(--text); }
   white-space: nowrap;
 }
 
+.badge-private {
+  background: rgba(248, 81, 73, 0.1);
+  color: var(--accent3);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.badge-pre {
+  background: rgba(227, 179, 65, 0.12);
+  color: var(--yellow);
+  border: 1px solid rgba(227, 179, 65, 0.4);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
 /* Detail page */
 .detail-header {
   display: flex;
@@ -1229,6 +1252,7 @@ async function renderDashboard() {
   html += `
   <div class="section">
     <div class="section-title">📂 Repositories
+      <span style="font-size:11px;color:var(--text2);font-weight:400">(forks excluded)</span>
       <span style="margin-left:auto;display:flex;gap:6px">
         <button class="btn btn-mini" id="exportCsvBtn">⬇ CSV</button>
         <button class="btn btn-mini" id="exportJsonBtn">⬇ JSON</button>
@@ -1266,7 +1290,7 @@ async function renderDashboard() {
     const grid = document.getElementById('repoGrid');
     grid.innerHTML = list.map(r => `
       <div class="repo-card" onclick="navigateToRepo('${esc(r.name)}')">
-        <div class="repo-name">${r.private ? '🔒 ' : ''}${esc(r.name)}${r.archived ? ' <span class="badge-archived">📦 archived</span>' : ''}</div>
+        <div class="repo-name">${esc(r.name)}${r.private ? ' <span class="badge-private">🔒 private</span>' : ''}${r.archived ? ' <span class="badge-archived">📦 archived</span>' : ''}</div>
         <div class="repo-desc">${r.description ? esc(r.description) : '<em>No description</em>'}</div>
         <div class="repo-meta">
           ${r.language ? `<span><span class="lang-dot" style="background:${LANG_COLORS[r.language] || '#888'}"></span> ${esc(r.language)}</span>` : ''}
@@ -1277,7 +1301,8 @@ async function renderDashboard() {
         </div>
         ${r.latestRelease ? `
         <div class="repo-release">
-          <span class="tag">${esc(r.latestRelease.tag)}</span>
+          <span class="tag">${esc(r.latestRelease.tag)}${r.latestRelease.prerelease ? ' <span class="badge-pre">⚠️</span>' : ''}</span>
+          <span style="color:var(--text2);font-size:11px">${timeAgo(r.latestRelease.date)}</span>
           ${showDl ? `<span class="dl" ${r.mirrorParts.length ? `title="${esc(partsTitle(r.mainDl, r.mirrorParts))}"` : ''}>⬇️ ${formatNumber(r.latestReleaseDl)} downloads${r.mirrorParts.length ? ' <small style="color:var(--text2);font-weight:400">(+mirrors)</small>' : ''}</span>` : ''}
         </div>` : ''}
       </div>
@@ -1478,7 +1503,7 @@ async function renderRepoDetail(repoName) {
   html += `
   <div class="detail-header">
     <div class="info">
-      <h2>${repo.private ? '🔒 ' : ''}${esc(repo.name)}${repo.archived ? ' <span class="badge-archived">📦 archived</span>' : ''}</h2>
+      <h2>${esc(repo.name)}${repo.private ? ' <span class="badge-private">🔒 private</span>' : ''}${repo.archived ? ' <span class="badge-archived">📦 archived</span>' : ''}</h2>
       <p>${repo.description ? esc(repo.description) : 'No description'}</p>
       ${repo.topics && repo.topics.length ? `<div class="topics">${repo.topics.map(t => `<span class="topic">${esc(t)}</span>`).join('')}</div>` : ''}
       ${repo.homepage ? `<p style="margin-top:8px"><a href="${esc(repo.homepage)}" target="_blank">🌐 ${esc(repo.homepage)}</a></p>` : ''}
@@ -1591,7 +1616,7 @@ async function renderRepoDetail(repoName) {
         ${releases.map(r => `
           <div class="release-item">
             <span class="tag-name">${esc(r.tag)}</span>
-            <span class="name">${esc(r.name || r.tag)}</span>
+            <span class="name">${esc(r.name || r.tag)}${r.prerelease ? ' <span class="badge-pre">⚠️ pre-release</span>' : ''}</span>
             <span class="date">${formatDate(r.date)}</span>
             ${showDl ? `<span class="downloads">⬇️ ${formatNumber(combinedDl(r))}${partsOf(r).length ? ` <small style="color:var(--text2);font-weight:400">(${esc(partsTitle(releaseMainDl(r), partsOf(r)))})</small>` : ''}</span>` : ''}
           </div>
