@@ -680,6 +680,15 @@ function getToken() {
   try { return localStorage.getItem('fgs_token') || ''; } catch { return ''; }
 }
 
+// Persistent public/private scope filter — applies to ALL stats on the dashboard
+function getVisFilter() {
+  try { return localStorage.getItem('fgs_vis') || 'all'; } catch { return 'all'; }
+}
+
+function setVisFilter(v) {
+  try { localStorage.setItem('fgs_vis', v); } catch {}
+}
+
 // Generic cached JSON fetch. GitHub calls get auth headers + rate-limit display, and skip
 // the cache when a token is present (no private data written to localStorage, never stale)
 async function apiFetch(url, isGitHub = false) {
@@ -1067,7 +1076,7 @@ function recordHistory(key, point) {
 }
 
 function historyChart(canvasId, hist, series) {
-  new Chart(document.getElementById(canvasId), {
+  return new Chart(document.getElementById(canvasId), {
     type: 'line',
     data: {
       labels: hist.map(e => e.d),
@@ -1213,23 +1222,36 @@ async function renderDashboard() {
     };
   }));
 
-  // Global stats
-  const totalStars = repoData.reduce((s, r) => s + r.stars, 0);
-  const totalForks = repoData.reduce((s, r) => s + r.forks, 0);
-  const totalIssues = repoData.reduce((s, r) => s + r.issues, 0);
-  const totalDl = repoData.reduce((s, r) => s + r.totalDl, 0);
-  const anyMirror = repoData.some(r => r.totalParts.length > 0);
+  const privCountAll = repoData.filter(r => r.private).length;
+
+  // Charts of the current view, destroyed before each re-render (scope switch)
+  let viewCharts = [];
+  const track = c => { viewCharts.push(c); return c; };
+
+  function renderView() {
+  viewCharts.forEach(c => c.destroy());
+  viewCharts = [];
+
+  // The scope filter applies to EVERYTHING on this page: stats, charts, cards, history
+  let vis = privCountAll ? getVisFilter() : 'all';
+  const data = vis === 'all' ? repoData : repoData.filter(r => (vis === 'private') === r.private);
+
+  // Global stats (current scope)
+  const totalStars = data.reduce((s, r) => s + r.stars, 0);
+  const totalForks = data.reduce((s, r) => s + r.forks, 0);
+  const totalIssues = data.reduce((s, r) => s + r.issues, 0);
+  const totalDl = data.reduce((s, r) => s + r.totalDl, 0);
+  const anyMirror = data.some(r => r.totalParts.length > 0);
   const showDl = ENGINES[state.main.forge].counts || anyMirror;
-  const reposWithRelease = repoData.filter(r => r.latestRelease);
-  const languages = [...new Set(repoData.map(r => r.language).filter(Boolean))];
-  const privCount = repoData.filter(r => r.private).length;
+  const reposWithRelease = data.filter(r => r.latestRelease);
+  const languages = [...new Set(data.map(r => r.language).filter(Boolean))];
 
-  // Local history snapshot (this browser only)
-  const hist = recordHistory(`dash:${state.key}`, { dl: totalDl, stars: totalStars });
+  // Local history snapshot (this browser only) — one series per scope
+  const hist = recordHistory(`dash:${state.key}${vis === 'all' ? '' : ':' + vis}`, { dl: totalDl, stars: totalStars });
 
-  // Most recent release across all repos
+  // Most recent release across the scoped repos
   let mostRecentRelease = null, mostRecentRepo = null;
-  repoData.forEach(r => {
+  data.forEach(r => {
     if (r.latestRelease) {
       if (!mostRecentRelease || new Date(r.latestRelease.date) > new Date(mostRecentRelease.date)) {
         mostRecentRelease = r.latestRelease;
@@ -1244,11 +1266,24 @@ async function renderDashboard() {
     <span>·</span>
     <span>${esc(label)}</span>
     <span>·</span>
-    <span>${repoData.length} repos</span>
+    <span>${data.length} repos${vis !== 'all' ? ` (${vis})` : ''}</span>
     <a onclick="navigateHome()" style="font-size:12px">(change)</a>
   `;
 
   let html = '';
+
+  // Global scope selector (shown only when private repos are loaded)
+  if (privCountAll) {
+    html += `
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:14px">
+      <span style="font-size:12px;color:var(--text2)">Scope — applies to all stats on this page:</span>
+      <select id="visSelect" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:13px;cursor:pointer;outline:none">
+        <option value="all"${vis === 'all' ? ' selected' : ''}>👁 All repos</option>
+        <option value="public"${vis === 'public' ? ' selected' : ''}>🌐 Public only</option>
+        <option value="private"${vis === 'private' ? ' selected' : ''}>🔒 Private only</option>
+      </select>
+    </div>`;
+  }
 
   // Release banner
   if (mostRecentRelease) {
@@ -1274,7 +1309,7 @@ async function renderDashboard() {
   // Stats cards
   html += `
   <div class="stats-grid">
-    <div class="stat-card"><div class="value">${repoData.length}</div><div class="label">Repositories</div></div>
+    <div class="stat-card"><div class="value">${data.length}</div><div class="label">Repositories</div></div>
     <div class="stat-card"><div class="value">${formatNumber(totalStars)}</div><div class="label">⭐ Total Stars</div></div>
     <div class="stat-card"><div class="value">${formatNumber(totalForks)}</div><div class="label">🔀 Total Forks</div></div>
     <div class="stat-card"><div class="value">${totalIssues}</div><div class="label">🔓 Open Issues${state.main.forge === 'github' ? ' + PRs' : ''}</div></div>
@@ -1297,22 +1332,16 @@ async function renderDashboard() {
   html += `
   <div class="section">
     <div class="section-title">📂 Repositories
-      <span style="font-size:11px;color:var(--text2);font-weight:400">(forks excluded${privCount ? `, ${privCount} private` : ''})</span>
+      <span style="font-size:11px;color:var(--text2);font-weight:400">(forks excluded${privCountAll ? `, ${privCountAll} private` : ''})</span>
       <span style="margin-left:auto;display:flex;gap:6px">
         <button class="btn btn-mini" id="exportCsvBtn">⬇ CSV</button>
         <button class="btn btn-mini" id="exportJsonBtn">⬇ JSON</button>
       </span>
     </div>
-    ${state.main.forge === 'github' && state.githubAuthOwner && privCount === 0 ? `
+    ${state.main.forge === 'github' && state.githubAuthOwner && privCountAll === 0 ? `
     <p style="color:var(--text2);font-size:12px;margin-bottom:10px">🔑 Token authenticated, but the API returned no private repositories. If you expected some: a classic token needs the <strong>repo</strong> scope; a fine-grained token needs <strong>Repository access: All repositories</strong> (the default only grants public ones).</p>` : ''}
     <div class="sort-bar">
       <input type="text" id="searchInput" placeholder="Search repositories...">
-      ${privCount ? `
-      <select id="visSelect">
-        <option value="all">👁 All repos</option>
-        <option value="public">🌐 Public only</option>
-        <option value="private">🔒 Private only</option>
-      </select>` : ''}
       <select id="sortSelect">
         <option value="stars">⭐ Stars</option>
         <option value="forks">🔀 Forks</option>
@@ -1328,7 +1357,7 @@ async function renderDashboard() {
   app.innerHTML = html;
 
   wireExport('exportCsvBtn', 'exportJsonBtn', `forgestats-${state.main.user}-repos`, () =>
-    repoData.map(r => ({
+    data.map(r => ({
       name: r.name, archived: r.archived, stars: r.stars, forks: r.forks, open_issues: r.issues,
       language: r.language, updated: r.updated, releases: r.releasesCount,
       latest_release: r.latestRelease ? r.latestRelease.tag : null,
@@ -1367,10 +1396,7 @@ async function renderDashboard() {
   function sortAndFilter() {
     const search = document.getElementById('searchInput').value.toLowerCase();
     const sort = document.getElementById('sortSelect').value;
-    const visSel = document.getElementById('visSelect');
-    const vis = visSel ? visSel.value : 'all';
-    let filtered = repoData.filter(r => r.name.toLowerCase().includes(search) || (r.description || '').toLowerCase().includes(search));
-    if (vis !== 'all') filtered = filtered.filter(r => (vis === 'private') === r.private);
+    let filtered = data.filter(r => r.name.toLowerCase().includes(search) || (r.description || '').toLowerCase().includes(search));
     filtered.sort((a, b) => {
       switch (sort) {
         case 'stars': return b.stars - a.stars;
@@ -1387,14 +1413,14 @@ async function renderDashboard() {
   document.getElementById('searchInput').addEventListener('input', sortAndFilter);
   document.getElementById('sortSelect').addEventListener('change', sortAndFilter);
   const visSelEl = document.getElementById('visSelect');
-  if (visSelEl) visSelEl.addEventListener('change', sortAndFilter);
+  if (visSelEl) visSelEl.addEventListener('change', e => { setVisFilter(e.target.value); renderView(); });
   sortAndFilter();
 
   Chart.defaults.color = '#8b949e';
 
   // Stars chart
-  const topStars = [...repoData].sort((a, b) => b.stars - a.stars).slice(0, 10);
-  new Chart(document.getElementById('chartStars'), {
+  const topStars = [...data].sort((a, b) => b.stars - a.stars).slice(0, 10);
+  track(new Chart(document.getElementById('chartStars'), {
     type: 'bar',
     data: {
       labels: topStars.map(r => r.name),
@@ -1414,14 +1440,14 @@ async function renderDashboard() {
         y: { grid: { display: false } }
       }
     }
-  });
+  }));
 
   // Languages chart
   if (languages.length) {
     const langCount = {};
-    repoData.forEach(r => { if (r.language) langCount[r.language] = (langCount[r.language] || 0) + 1; });
+    data.forEach(r => { if (r.language) langCount[r.language] = (langCount[r.language] || 0) + 1; });
     const langEntries = Object.entries(langCount).sort((a, b) => b[1] - a[1]);
-    new Chart(document.getElementById('chartLangs'), {
+    track(new Chart(document.getElementById('chartLangs'), {
       type: 'doughnut',
       data: {
         labels: langEntries.map(e => e[0]),
@@ -1437,13 +1463,13 @@ async function renderDashboard() {
           legend: { position: 'right', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } }
         }
       }
-    });
+    }));
   }
 
   // Downloads chart
   if (showDl) {
-    const withDl = repoData.filter(r => r.totalDl > 0).sort((a, b) => b.totalDl - a.totalDl).slice(0, 10);
-    new Chart(document.getElementById('chartDownloads'), {
+    const withDl = data.filter(r => r.totalDl > 0).sort((a, b) => b.totalDl - a.totalDl).slice(0, 10);
+    track(new Chart(document.getElementById('chartDownloads'), {
       type: 'bar',
       data: {
         labels: withDl.map(r => r.name),
@@ -1463,18 +1489,18 @@ async function renderDashboard() {
           y: { grid: { display: false } }
         }
       }
-    });
+    }));
   }
 
   // Activity chart (last updated by month)
   const months = {};
-  repoData.forEach(r => {
+  data.forEach(r => {
     const d = new Date(r.pushed || r.updated);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     months[key] = (months[key] || 0) + 1;
   });
   const sortedMonths = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0]));
-  new Chart(document.getElementById('chartActivity'), {
+  track(new Chart(document.getElementById('chartActivity'), {
     type: 'line',
     data: {
       labels: sortedMonths.map(e => e[0]),
@@ -1495,15 +1521,18 @@ async function renderDashboard() {
         y: { grid: { color: '#30363d33' }, beginAtZero: true }
       }
     }
-  });
+  }));
 
   // Local history chart
   if (hist.length >= 2) {
-    historyChart('chartHistory', hist, [
+    track(historyChart('chartHistory', hist, [
       { key: 'dl', label: 'Downloads', color: '#d2a8ff', axis: 'y' },
       { key: 'stars', label: 'Stars', color: '#58a6ff', axis: 'y1' },
-    ]);
+    ]));
   }
+  } // end renderView
+
+  renderView();
 }
 
 // ---- DETAIL PAGE ----
