@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Release Stats</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2333;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --accent: #58a6ff;
+  --accent2: #3fb950;
+  --accent3: #f78166;
+  --accent4: #d2a8ff;
+  --yellow: #e3b341;
+  --radius: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+header .container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+header h1 svg { fill: var(--text); }
+
+.header-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text2);
+  font-size: 14px;
+}
+
+.breadcrumb a { cursor: pointer; }
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.rate-limit { font-size: 12px; color: var(--text2); }
+
+/* Loading */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 16px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Stats cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-card .value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-card .label {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-card.highlight {
+  border-color: var(--accent2);
+  background: linear-gradient(135deg, rgba(63, 185, 80, 0.08), transparent);
+}
+
+.stat-card.highlight .value { color: var(--accent2); }
+
+.stat-card.downloads {
+  border-color: var(--accent4);
+  background: linear-gradient(135deg, rgba(210, 168, 255, 0.08), transparent);
+}
+
+.stat-card.downloads .value { color: var(--accent4); }
+
+/* Section */
+.section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+/* Release banner */
+.release-banner {
+  background: linear-gradient(135deg, rgba(63, 185, 80, 0.1), rgba(88, 166, 255, 0.05));
+  border: 1px solid var(--accent2);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.release-banner .release-tag {
+  background: var(--accent2);
+  color: #000;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.release-banner .release-info { flex: 1; min-width: 200px; }
+
+.release-banner .release-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.release-banner .release-meta {
+  font-size: 13px;
+  color: var(--text2);
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.release-banner .release-downloads {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent4);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.release-banner .release-downloads small {
+  display: block;
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 400;
+}
+
+/* Repo grid */
+.repo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 12px;
+}
+
+.repo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.repo-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.repo-card .repo-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.repo-card .repo-desc {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.4;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.repo-card .repo-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text2);
+  flex-wrap: wrap;
+}
+
+.repo-card .repo-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.repo-card .repo-release {
+  background: rgba(63, 185, 80, 0.1);
+  border: 1px solid rgba(63, 185, 80, 0.3);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.repo-card .repo-release .tag {
+  color: var(--accent2);
+  font-weight: 600;
+}
+
+.repo-card .repo-release .dl {
+  color: var(--accent4);
+  font-weight: 600;
+}
+
+.lang-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Detail page */
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.detail-header .info { flex: 1; min-width: 250px; }
+.detail-header .info h2 { font-size: 24px; margin-bottom: 6px; }
+.detail-header .info p { color: var(--text2); font-size: 14px; line-height: 1.5; }
+
+.detail-header .actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn:hover { background: var(--surface2); text-decoration: none; }
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.chart-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text2);
+}
+
+/* Releases table */
+.releases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.release-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.release-item .tag-name {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent2);
+  white-space: nowrap;
+}
+
+.release-item .name { font-weight: 500; flex: 1; min-width: 120px; }
+
+.release-item .date { color: var(--text2); font-size: 12px; white-space: nowrap; }
+
+.release-item .downloads {
+  color: var(--accent4);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Contributors */
+.contributors-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contributor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px 4px 4px;
+  font-size: 13px;
+}
+
+.contributor img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+/* Topics */
+.topics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.topic {
+  background: rgba(88, 166, 255, 0.1);
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Error */
+.error-box {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  color: var(--accent3);
+}
+
+/* Sort bar */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.sort-bar select, .sort-bar input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.sort-bar input { flex: 1; min-width: 180px; }
+.sort-bar select { cursor: pointer; }
+
+/* Landing */
+.landing { max-width: 560px; margin: 40px auto; }
+.landing h2 { margin-bottom: 8px; }
+.landing > p { color: var(--text2); font-size: 14px; margin-bottom: 24px; }
+
+.landing-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.landing-form label { font-size: 13px; font-weight: 600; margin-top: 10px; }
+.landing-form label .req { color: var(--accent3); font-weight: 400; font-size: 11px; }
+.landing-form label .opt { color: var(--text2); font-weight: 400; font-size: 11px; }
+
+.landing-form input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+.landing-form input:focus { border-color: var(--accent); }
+
+.btn-primary {
+  justify-content: center;
+  background: var(--accent2);
+  border-color: var(--accent2);
+  color: #000;
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+.btn-primary:hover { background: #4cc961; }
+
+.landing-error { color: var(--accent3); font-size: 13px; min-height: 18px; }
+
+.landing-note { color: var(--text2); font-size: 12px; line-height: 1.5; margin-top: 4px; }
+.landing-note code { background: var(--surface2); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .repo-grid { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .release-banner { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1 onclick="navigateHome()" style="cursor:pointer" title="Home">
+      <svg height="24" width="24" viewBox="0 0 16 16"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
+      GitHub Stats
+    </h1>
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <div class="header-right">
+      <span class="rate-limit" id="rateLimit"></span>
+    </div>
+  </div>
+</header>
+
+<main class="container" id="app">
+  <div class="loading">
+    <div class="spinner"></div>
+    <span>Loading...</span>
+  </div>
+</main>
+
+<script>
+const LANG_COLORS = {"JavaScript":"#f1e05a","TypeScript":"#3178c6","Python":"#3572A5","Java":"#b07219","C++":"#f34b7d","C#":"#178600","C":"#555555","Go":"#00ADD8","Rust":"#dea584","Ruby":"#701516","PHP":"#4F5D95","Swift":"#F05138","Kotlin":"#A97BFF","Dart":"#00B4AB","Shell":"#89e051","HTML":"#e34c26","CSS":"#563d7c","Vue":"#41b883","Svelte":"#ff3e00","Lua":"#000080","R":"#198CE7","Scala":"#c22d40","Elixir":"#6e4a7e","Haskell":"#5e5086","Zig":"#ec915c","Nim":"#ffc200","GDScript":"#355570","GLSL":"#5686a5","HLSL":"#aace60"};
+
+// ---- STATE (populated from the URL: #gh=user&sf=user&repo=name) ----
+const state = { gh: null, sf: '', sfMap: null };
+
+let allRepos = [];
+
+// localStorage cache (30 min): stretches the anonymous GitHub rate limit (60 req/h)
+const CACHE_TTL = 30 * 60 * 1000;
+
+function cacheGet(key) {
+  try {
+    const raw = localStorage.getItem('ght:' + key);
+    if (!raw) return null;
+    const { t, v } = JSON.parse(raw);
+    if (Date.now() - t > CACHE_TTL) return null;
+    return v;
+  } catch { return null; }
+}
+
+function cacheSet(key, v) {
+  try { localStorage.setItem('ght:' + key, JSON.stringify({ t: Date.now(), v })); } catch {}
+}
+
+// Optional token, stored only in the browser (never in the URL or the code)
+function getToken() {
+  try { return localStorage.getItem('ght_token') || ''; } catch { return ''; }
+}
+
+function apiHeaders() {
+  const h = { 'Accept': 'application/vnd.github.v3+json' };
+  const token = getToken();
+  if (token) h['Authorization'] = `token ${token}`;
+  return h;
+}
+
+async function apiFetch(url) {
+  // Skip the cache when authenticated: 5,000 req/h is plenty, and private data
+  // should never be written to localStorage or served stale after a token change
+  const useCache = !getToken();
+  if (useCache) {
+    const cached = cacheGet(url);
+    if (cached !== null) return cached;
+  }
+  const resp = await fetch(url, { headers: apiHeaders() });
+  const remaining = resp.headers.get('X-RateLimit-Remaining');
+  const limit = resp.headers.get('X-RateLimit-Limit');
+  if (remaining !== null) {
+    document.getElementById('rateLimit').textContent = `API: ${remaining}/${limit}`;
+  }
+  if (!resp.ok) throw new Error(`GitHub API ${resp.status}: ${resp.statusText}`);
+  const data = await resp.json();
+  if (useCache) cacheSet(url, data);
+  return data;
+}
+
+async function fetchAllRepos() {
+  // If the provided token belongs to the requested profile, include private repos
+  let baseUrl = `https://api.github.com/users/${state.gh}/repos?type=public`;
+  if (getToken()) {
+    try {
+      const me = await apiFetch('https://api.github.com/user');
+      if (me.login && me.login.toLowerCase() === state.gh.toLowerCase()) {
+        baseUrl = 'https://api.github.com/user/repos?affiliation=owner';
+      }
+    } catch {}
+  }
+  let page = 1;
+  let repos = [];
+  while (true) {
+    const batch = await apiFetch(`${baseUrl}&per_page=100&page=${page}`);
+    repos = repos.concat(batch);
+    if (batch.length < 100) break;
+    page++;
+  }
+  return repos.filter(r => !r.fork);
+}
+
+async function fetchLatestRelease(owner, repo) {
+  try {
+    return await apiFetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`);
+  } catch { return null; }
+}
+
+async function fetchAllReleases(owner, repo) {
+  try {
+    return await apiFetch(`https://api.github.com/repos/${owner}/${repo}/releases?per_page=100`);
+  } catch { return []; }
+}
+
+async function fetchContributors(owner, repo) {
+  try {
+    return await apiFetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=20`);
+  } catch { return []; }
+}
+
+async function fetchCommitActivity(owner, repo) {
+  try {
+    return await apiFetch(`https://api.github.com/repos/${owner}/${repo}/stats/commit_activity`);
+  } catch { return []; }
+}
+
+async function fetchLanguages(owner, repo) {
+  try {
+    return await apiFetch(`https://api.github.com/repos/${owner}/${repo}/languages`);
+  } catch { return {}; }
+}
+
+async function fetchParticipation(owner, repo) {
+  try {
+    return await apiFetch(`https://api.github.com/repos/${owner}/${repo}/stats/participation`);
+  } catch { return null; }
+}
+
+// ---- SOURCEFORGE ----
+
+function normalizeName(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// SourceForge projects of a user via the Allura REST API (CORS allowed)
+async function fetchSfProjects(sfUser) {
+  const key = `sfprofile:${sfUser}`;
+  const cached = cacheGet(key);
+  if (cached !== null) return cached;
+  try {
+    const resp = await fetch(`https://sourceforge.net/rest/u/${encodeURIComponent(sfUser)}/profile`);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    const projects = (data.projects || []).map(p => ({
+      name: p.name,
+      slug: (p.url.match(/\/p\/([^/]+)/) || [])[1] || ''
+    })).filter(p => p.slug);
+    cacheSet(key, projects);
+    return projects;
+  } catch { return []; }
+}
+
+// Matches each GitHub repo to the SF project with the same normalized name (UnityGameTranslator <-> unitygametranslator)
+async function ensureSfMap(repoNames) {
+  if (!state.sfMap) state.sfMap = {};
+  if (!state.sf) return;
+  const missing = repoNames.filter(rn => !(rn in state.sfMap));
+  if (missing.length === 0) return;
+  const projects = await fetchSfProjects(state.sf);
+  missing.forEach(rn => {
+    const n = normalizeName(rn);
+    const match = projects.find(p => normalizeName(p.slug) === n || normalizeName(p.name) === n);
+    state.sfMap[rn] = match ? match.slug : null;
+  });
+}
+
+function sfProject(repoName) {
+  return (state.sfMap || {})[repoName] || null;
+}
+
+// SF download total for a folder (path = release tag) or the whole project (empty path)
+async function fetchSfDownloads(project, path = '') {
+  const key = `sfdl:${project}:${path}`;
+  const cached = cacheGet(key);
+  if (cached !== null) return cached;
+  try {
+    const end = new Date().toISOString().slice(0, 10);
+    const folder = path ? encodeURIComponent(path) + '/' : '';
+    const url = `https://sourceforge.net/projects/${project}/files/${folder}stats/json?start_date=2000-01-01&end_date=${end}`;
+    // redirect: 'error' — a missing SF folder redirects (301) to the HTML files page
+    const resp = await fetch(url, { redirect: 'error' });
+    if (!resp.ok) return 0;
+    const data = await resp.json();
+    const total = data.total || 0;
+    cacheSet(key, total);
+    return total;
+  } catch { return 0; }
+}
+
+function formatNumber(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return n.toString();
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function timeAgo(d) {
+  const diff = Date.now() - new Date(d).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days}d ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
+function isHashAsset(name) {
+  return /(\.sha256(sum)?(\.txt)?$|^sha256sums?(\.txt)?$)/i.test(name);
+}
+
+function countableAssets(release) {
+  return (release && release.assets ? release.assets : []).filter(a => !isHashAsset(a.name));
+}
+
+function releaseDownloads(release) {
+  return countableAssets(release).reduce((sum, a) => sum + a.download_count, 0);
+}
+
+function allReleasesDownloads(releases) {
+  return releases.reduce((sum, r) => sum + releaseDownloads(r), 0);
+}
+
+// ---- RENDERING ----
+
+async function renderDashboard() {
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading repositories for <strong>${state.gh}</strong>...</span></div>`;
+
+  try {
+    allRepos = await fetchAllRepos();
+  } catch (e) {
+    app.innerHTML = `<div class="error-box"><h3>Error</h3><p>${e.message}</p></div>`;
+    return;
+  }
+
+  if (allRepos.length === 0) {
+    app.innerHTML = `<div class="error-box"><h3>No repositories found</h3><p>Check the GitHub username.</p></div>`;
+    return;
+  }
+
+  // Fetch latest releases for all repos in parallel
+  app.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading releases...</span></div>`;
+
+  const releasePromises = allRepos.map(r => fetchLatestRelease(state.gh, r.name));
+  const [releases] = await Promise.all([
+    Promise.all(releasePromises),
+    ensureSfMap(allRepos.map(r => r.name))
+  ]);
+
+  // SourceForge downloads of the latest release for mirrored repos
+  const sfDls = await Promise.all(allRepos.map((r, i) => {
+    const proj = sfProject(r.name);
+    if (!proj || !releases[i]) return Promise.resolve(0);
+    return fetchSfDownloads(proj, releases[i].tag_name);
+  }));
+
+  const repoData = allRepos.map((r, i) => ({
+    ...r,
+    latestRelease: releases[i],
+    ghDl: releaseDownloads(releases[i]),
+    sfDl: sfDls[i],
+    latestReleaseDl: releaseDownloads(releases[i]) + sfDls[i]
+  }));
+
+  // Global stats
+  const totalStars = repoData.reduce((s, r) => s + r.stargazers_count, 0);
+  const totalForks = repoData.reduce((s, r) => s + r.forks_count, 0);
+  const totalIssues = repoData.reduce((s, r) => s + r.open_issues_count, 0);
+  const totalWatchers = repoData.reduce((s, r) => s + r.watchers_count, 0);
+  const totalDl = repoData.reduce((s, r) => s + r.latestReleaseDl, 0);
+  const totalSf = repoData.reduce((s, r) => s + r.sfDl, 0);
+  const reposWithRelease = repoData.filter(r => r.latestRelease);
+  const languages = [...new Set(repoData.map(r => r.language).filter(Boolean))];
+
+  // Find most recent release across all repos
+  let mostRecentRelease = null;
+  let mostRecentRepo = null;
+  repoData.forEach(r => {
+    if (r.latestRelease) {
+      if (!mostRecentRelease || new Date(r.latestRelease.published_at) > new Date(mostRecentRelease.published_at)) {
+        mostRecentRelease = r.latestRelease;
+        mostRecentRepo = r;
+      }
+    }
+  });
+
+  document.getElementById('breadcrumb').innerHTML = `
+    <img class="header-avatar" src="https://github.com/${state.gh}.png?size=64" alt="">
+    <strong>${state.gh}</strong>
+    <span>·</span>
+    <span>${repoData.length} repos</span>
+    <a onclick="navigateHome()" style="font-size:12px">(change)</a>
+  `;
+
+  let html = '';
+
+  // Release banner
+  if (mostRecentRelease) {
+    html += `
+    <div class="release-banner">
+      <div class="release-tag">${mostRecentRelease.tag_name}</div>
+      <div class="release-info">
+        <div class="release-name">${mostRecentRepo.name} — ${mostRecentRelease.name || mostRecentRelease.tag_name}</div>
+        <div class="release-meta">
+          <span>📅 ${formatDate(mostRecentRelease.published_at)}</span>
+          <span>⏱ ${timeAgo(mostRecentRelease.published_at)}</span>
+          <span>${mostRecentRelease.prerelease ? '⚠️ Pre-release' : '✅ Stable'}</span>
+        </div>
+      </div>
+      <div class="release-downloads">
+        ${formatNumber(mostRecentRepo.latestReleaseDl)}
+        <small>downloads (this release)${mostRecentRepo.sfDl > 0 ? ` — GH ${formatNumber(mostRecentRepo.ghDl)} + SF ${formatNumber(mostRecentRepo.sfDl)}` : ''}</small>
+      </div>
+    </div>`;
+  }
+
+  // Stats cards
+  html += `
+  <div class="stats-grid">
+    <div class="stat-card"><div class="value">${repoData.length}</div><div class="label">Repositories</div></div>
+    <div class="stat-card"><div class="value">${formatNumber(totalStars)}</div><div class="label">⭐ Total Stars</div></div>
+    <div class="stat-card"><div class="value">${formatNumber(totalForks)}</div><div class="label">🔀 Total Forks</div></div>
+    <div class="stat-card"><div class="value">${totalIssues}</div><div class="label">🔓 Open Issues</div></div>
+    <div class="stat-card highlight"><div class="value">${reposWithRelease.length}</div><div class="label">📦 Repos with a release</div></div>
+    <div class="stat-card downloads"><div class="value">${formatNumber(totalDl)}</div><div class="label">⬇️ Downloads (latest releases${totalSf > 0 ? ', GH+SF' : ''})</div></div>
+    <div class="stat-card"><div class="value">${languages.length}</div><div class="label">🌐 Languages</div></div>
+  </div>`;
+
+  // Charts section
+  html += `
+  <div class="charts-grid">
+    <div class="chart-card"><h3>⭐ Stars per repo (Top 10)</h3><canvas id="chartStars"></canvas></div>
+    <div class="chart-card"><h3>🌐 Language breakdown</h3><canvas id="chartLangs"></canvas></div>
+    <div class="chart-card"><h3>⬇️ Downloads per repo</h3><canvas id="chartDownloads"></canvas></div>
+    <div class="chart-card"><h3>📅 Activity (last updated)</h3><canvas id="chartActivity"></canvas></div>
+  </div>`;
+
+  // Sort bar + repos
+  html += `
+  <div class="section">
+    <div class="section-title">📂 Repositories</div>
+    <div class="sort-bar">
+      <input type="text" id="searchInput" placeholder="Search repositories...">
+      <select id="sortSelect">
+        <option value="stars">⭐ Stars</option>
+        <option value="forks">🔀 Forks</option>
+        <option value="updated">📅 Updated</option>
+        <option value="name">🔤 Name</option>
+        <option value="downloads">⬇️ Downloads</option>
+        <option value="issues">🔓 Issues</option>
+      </select>
+    </div>
+    <div class="repo-grid" id="repoGrid"></div>
+  </div>`;
+
+  app.innerHTML = html;
+
+  // Render repo cards
+  function renderRepoCards(repos) {
+    const grid = document.getElementById('repoGrid');
+    grid.innerHTML = repos.map(r => `
+      <div class="repo-card" onclick="navigateToRepo('${r.name}')">
+        <div class="repo-name">${r.private ? '🔒 ' : ''}${r.name}</div>
+        <div class="repo-desc">${r.description || '<em>No description</em>'}</div>
+        <div class="repo-meta">
+          ${r.language ? `<span><span class="lang-dot" style="background:${LANG_COLORS[r.language] || '#888'}"></span> ${r.language}</span>` : ''}
+          <span>⭐ ${formatNumber(r.stargazers_count)}</span>
+          <span>🔀 ${r.forks_count}</span>
+          <span>🔓 ${r.open_issues_count}</span>
+          <span>📅 ${timeAgo(r.updated_at)}</span>
+        </div>
+        ${r.latestRelease ? `
+        <div class="repo-release">
+          <span class="tag">${r.latestRelease.tag_name}</span>
+          <span class="dl" ${r.sfDl > 0 ? `title="GitHub: ${r.ghDl} · SourceForge: ${r.sfDl}"` : ''}>⬇️ ${formatNumber(r.latestReleaseDl)} downloads${r.sfDl > 0 ? ' <small style="color:var(--text2);font-weight:400">(+SF)</small>' : ''}</span>
+        </div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function sortAndFilter() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const sort = document.getElementById('sortSelect').value;
+    let filtered = repoData.filter(r => r.name.toLowerCase().includes(search) || (r.description || '').toLowerCase().includes(search));
+    filtered.sort((a, b) => {
+      switch (sort) {
+        case 'stars': return b.stargazers_count - a.stargazers_count;
+        case 'forks': return b.forks_count - a.forks_count;
+        case 'updated': return new Date(b.updated_at) - new Date(a.updated_at);
+        case 'name': return a.name.localeCompare(b.name);
+        case 'downloads': return b.latestReleaseDl - a.latestReleaseDl;
+        case 'issues': return b.open_issues_count - a.open_issues_count;
+      }
+    });
+    renderRepoCards(filtered);
+  }
+
+  document.getElementById('searchInput').addEventListener('input', sortAndFilter);
+  document.getElementById('sortSelect').addEventListener('change', sortAndFilter);
+  sortAndFilter();
+
+  // Charts
+  const chartDefaults = {
+    color: '#8b949e',
+    borderColor: '#30363d',
+  };
+  Chart.defaults.color = chartDefaults.color;
+
+  // Stars chart
+  const topStars = [...repoData].sort((a, b) => b.stargazers_count - a.stargazers_count).slice(0, 10);
+  new Chart(document.getElementById('chartStars'), {
+    type: 'bar',
+    data: {
+      labels: topStars.map(r => r.name),
+      datasets: [{
+        data: topStars.map(r => r.stargazers_count),
+        backgroundColor: '#58a6ff88',
+        borderColor: '#58a6ff',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#30363d33' } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+
+  // Languages chart
+  const langCount = {};
+  repoData.forEach(r => { if (r.language) langCount[r.language] = (langCount[r.language] || 0) + 1; });
+  const langEntries = Object.entries(langCount).sort((a, b) => b[1] - a[1]);
+  new Chart(document.getElementById('chartLangs'), {
+    type: 'doughnut',
+    data: {
+      labels: langEntries.map(e => e[0]),
+      datasets: [{
+        data: langEntries.map(e => e[1]),
+        backgroundColor: langEntries.map(e => LANG_COLORS[e[0]] || '#888'),
+        borderColor: '#161b22',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Downloads chart
+  const withDl = repoData.filter(r => r.latestReleaseDl > 0).sort((a, b) => b.latestReleaseDl - a.latestReleaseDl).slice(0, 10);
+  new Chart(document.getElementById('chartDownloads'), {
+    type: 'bar',
+    data: {
+      labels: withDl.map(r => r.name),
+      datasets: [{
+        data: withDl.map(r => r.latestReleaseDl),
+        backgroundColor: '#d2a8ff88',
+        borderColor: '#d2a8ff',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#30363d33' } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+
+  // Activity chart (last updated by month)
+  const months = {};
+  repoData.forEach(r => {
+    const d = new Date(r.pushed_at || r.updated_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months[key] = (months[key] || 0) + 1;
+  });
+  const sortedMonths = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0]));
+  new Chart(document.getElementById('chartActivity'), {
+    type: 'line',
+    data: {
+      labels: sortedMonths.map(e => e[0]),
+      datasets: [{
+        data: sortedMonths.map(e => e[1]),
+        borderColor: '#3fb950',
+        backgroundColor: '#3fb95022',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: '#3fb950',
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#30363d33' } },
+        y: { grid: { color: '#30363d33' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ---- DETAIL PAGE ----
+
+async function renderRepoDetail(repoName) {
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="loading"><div class="spinner"></div><span>Loading <strong>${repoName}</strong>...</span></div>`;
+
+  const owner = state.gh;
+
+  let repo, releases, contributors, commitActivity, languages, participation;
+  try {
+    [repo, releases, contributors, commitActivity, languages, participation] = await Promise.all([
+      apiFetch(`https://api.github.com/repos/${owner}/${repoName}`),
+      fetchAllReleases(owner, repoName),
+      fetchContributors(owner, repoName),
+      fetchCommitActivity(owner, repoName),
+      fetchLanguages(owner, repoName),
+      fetchParticipation(owner, repoName),
+    ]);
+  } catch (e) {
+    app.innerHTML = `<div class="error-box"><h3>Error</h3><p>${e.message}</p></div>`;
+    return;
+  }
+
+  // SourceForge downloads per release (SF folders are named after the release tags)
+  await ensureSfMap([repoName]);
+  const sfProj = sfProject(repoName);
+  const sfPerRelease = {};
+  let sfTotal = 0;
+  if (sfProj && releases.length > 0) {
+    const sfTotals = await Promise.all(releases.map(r => fetchSfDownloads(sfProj, r.tag_name)));
+    releases.forEach((r, i) => { sfPerRelease[r.tag_name] = sfTotals[i]; });
+    sfTotal = sfTotals.reduce((a, b) => a + b, 0);
+  }
+  const sfRelDl = r => sfPerRelease[r.tag_name] || 0;
+
+  const totalDl = allReleasesDownloads(releases) + sfTotal;
+  const latestRelease = releases[0] || null;
+
+  document.getElementById('breadcrumb').innerHTML = `
+    <img class="header-avatar" src="https://github.com/${owner}.png?size=64" alt="">
+    <a onclick="navigateDash()">${owner}</a>
+    <span>/</span>
+    <strong>${repoName}</strong>
+  `;
+
+  let html = '';
+
+  // Header
+  html += `
+  <div class="detail-header">
+    <div class="info">
+      <h2>${repo.private ? '🔒 ' : ''}${repo.name}</h2>
+      <p>${repo.description || 'No description'}</p>
+      ${repo.topics && repo.topics.length ? `<div class="topics">${repo.topics.map(t => `<span class="topic">${t}</span>`).join('')}</div>` : ''}
+      ${repo.homepage ? `<p style="margin-top:8px"><a href="${repo.homepage}" target="_blank">🌐 ${repo.homepage}</a></p>` : ''}
+    </div>
+    <div class="actions">
+      <a class="btn" href="${repo.html_url}" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+  </div>`;
+
+  // Stats
+  const createdDate = formatDate(repo.created_at);
+  const updatedDate = formatDate(repo.updated_at);
+  const repoSize = repo.size > 1024 ? (repo.size / 1024).toFixed(1) + ' MB' : repo.size + ' KB';
+
+  html += `
+  <div class="stats-grid">
+    <div class="stat-card"><div class="value">${formatNumber(repo.stargazers_count)}</div><div class="label">⭐ Stars</div></div>
+    <div class="stat-card"><div class="value">${repo.forks_count}</div><div class="label">🔀 Forks</div></div>
+    <div class="stat-card"><div class="value">${repo.open_issues_count}</div><div class="label">🔓 Open Issues</div></div>
+    <div class="stat-card"><div class="value">${repo.subscribers_count}</div><div class="label">👁 Watchers</div></div>
+    <div class="stat-card highlight"><div class="value">${releases.length}</div><div class="label">📦 Releases</div></div>
+    <div class="stat-card downloads"><div class="value">${formatNumber(totalDl)}</div><div class="label">⬇️ Total Downloads${sfProj ? ' (GH+SF)' : ''}</div></div>
+    ${sfProj ? `<div class="stat-card downloads"><div class="value">${formatNumber(sfTotal)}</div><div class="label">⬇️ from SourceForge</div></div>` : ''}
+    <div class="stat-card"><div class="value">${repoSize}</div><div class="label">💾 Size</div></div>
+    <div class="stat-card"><div class="value">${contributors.length || '?'}</div><div class="label">👥 Contributors</div></div>
+  </div>
+
+  <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+    <div class="stat-card"><div class="value" style="font-size:16px">${createdDate}</div><div class="label">📅 Created</div></div>
+    <div class="stat-card"><div class="value" style="font-size:16px">${updatedDate}</div><div class="label">🔄 Last updated</div></div>
+    <div class="stat-card"><div class="value" style="font-size:16px">${repo.license ? repo.license.spdx_id : 'None'}</div><div class="label">📜 License</div></div>
+    <div class="stat-card"><div class="value" style="font-size:16px">${repo.default_branch}</div><div class="label">🌿 Default branch</div></div>
+  </div>`;
+
+  // Latest release banner
+  if (latestRelease) {
+    const ghCount = releaseDownloads(latestRelease);
+    const sfCount = sfRelDl(latestRelease);
+    html += `
+    <div class="release-banner">
+      <div class="release-tag">${latestRelease.tag_name}</div>
+      <div class="release-info">
+        <div class="release-name">${latestRelease.name || latestRelease.tag_name}</div>
+        <div class="release-meta">
+          <span>📅 ${formatDate(latestRelease.published_at)}</span>
+          <span>⏱ ${timeAgo(latestRelease.published_at)}</span>
+          <span>${latestRelease.prerelease ? '⚠️ Pre-release' : '✅ Stable'}</span>
+        </div>
+      </div>
+      <div class="release-downloads">
+        ${formatNumber(ghCount + sfCount)}
+        <small>downloads (latest release)${sfCount > 0 ? ` — GH ${formatNumber(ghCount)} + SF ${formatNumber(sfCount)}` : ''}</small>
+      </div>
+    </div>`;
+  }
+
+  // Charts
+  html += `<div class="charts-grid">`;
+
+  // Languages chart
+  const langEntries = Object.entries(languages);
+  if (langEntries.length > 0) {
+    html += `<div class="chart-card"><h3>🌐 Languages</h3><canvas id="chartLangsDetail"></canvas></div>`;
+  }
+
+  // Commit activity
+  if (Array.isArray(commitActivity) && commitActivity.length > 0) {
+    html += `<div class="chart-card"><h3>📊 Commits (last 52 weeks)</h3><canvas id="chartCommits"></canvas></div>`;
+  }
+
+  // Downloads per release
+  if (releases.length > 0) {
+    html += `<div class="chart-card"><h3>⬇️ Downloads per release</h3><canvas id="chartReleaseDl"></canvas></div>`;
+  }
+
+  // Participation (owner vs others)
+  if (participation && participation.owner) {
+    html += `<div class="chart-card"><h3>👥 Participation (owner vs others)</h3><canvas id="chartParticipation"></canvas></div>`;
+  }
+
+  // Downloads per asset (line chart)
+  if (releases.length > 0) {
+    html += `<div class="chart-card" style="grid-column: 1 / -1;"><h3>📈 Asset Downloads per Release</h3><canvas id="chartDlTimeline"></canvas></div>`;
+  }
+
+  html += `</div>`;
+
+  // Contributors
+  if (contributors.length > 0) {
+    html += `
+    <div class="section">
+      <div class="section-title">👥 Contributors (Top ${Math.min(contributors.length, 20)})</div>
+      <div class="contributors-grid">
+        ${contributors.slice(0, 20).map(c => `
+          <a class="contributor" href="${c.html_url}" target="_blank">
+            <img src="${c.avatar_url}&s=56" alt="${c.login}">
+            <span>${c.login}</span>
+            <span style="color:var(--text2);font-size:11px">${c.contributions}</span>
+          </a>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+
+  // All releases
+  if (releases.length > 0) {
+    html += `
+    <div class="section">
+      <div class="section-title">📦 All releases (${releases.length})</div>
+      <div class="releases-list">
+        ${releases.map(r => `
+          <div class="release-item">
+            <span class="tag-name">${r.tag_name}</span>
+            <span class="name">${r.name || r.tag_name}</span>
+            <span class="date">${formatDate(r.published_at)}</span>
+            <span class="downloads">⬇️ ${formatNumber(releaseDownloads(r) + sfRelDl(r))}${sfRelDl(r) > 0 ? ` <small style="color:var(--text2);font-weight:400">(GH ${formatNumber(releaseDownloads(r))} · SF ${formatNumber(sfRelDl(r))})</small>` : ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+
+    // Assets detail for latest release
+    if (latestRelease && latestRelease.assets && latestRelease.assets.length > 0) {
+      html += `
+      <div class="section">
+        <div class="section-title">📎 Assets — ${latestRelease.tag_name}</div>
+        <div class="releases-list">
+          ${latestRelease.assets.map(a => `
+            <div class="release-item">
+              <span class="name" style="font-size:13px">${a.name}</span>
+              <span class="date">${(a.size / 1048576).toFixed(1)} MB</span>
+              <span class="downloads">⬇️ ${formatNumber(a.download_count)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+  }
+
+  app.innerHTML = html;
+
+  // Render charts
+  if (langEntries.length > 0) {
+    const totalBytes = langEntries.reduce((s, e) => s + e[1], 0);
+    new Chart(document.getElementById('chartLangsDetail'), {
+      type: 'doughnut',
+      data: {
+        labels: langEntries.map(e => `${e[0]} (${(e[1]/totalBytes*100).toFixed(1)}%)`),
+        datasets: [{
+          data: langEntries.map(e => e[1]),
+          backgroundColor: langEntries.map(e => LANG_COLORS[e[0]] || '#888'),
+          borderColor: '#161b22',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } } }
+      }
+    });
+  }
+
+  if (Array.isArray(commitActivity) && commitActivity.length > 0) {
+    const weeks = commitActivity.slice(-52);
+    new Chart(document.getElementById('chartCommits'), {
+      type: 'bar',
+      data: {
+        labels: weeks.map(w => {
+          const d = new Date(w.week * 1000);
+          return `${d.getDate()}/${d.getMonth()+1}`;
+        }),
+        datasets: [{
+          data: weeks.map(w => w.total),
+          backgroundColor: '#58a6ff66',
+          borderColor: '#58a6ff',
+          borderWidth: 1,
+          borderRadius: 2,
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 12, font: { size: 10 } } },
+          y: { grid: { color: '#30363d33' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  if (releases.length > 0) {
+    const releasesReversed = [...releases].reverse().slice(-20);
+    const dlDatasets = [{
+      label: 'GitHub',
+      data: releasesReversed.map(r => releaseDownloads(r)),
+      backgroundColor: '#d2a8ff66',
+      borderColor: '#d2a8ff',
+      borderWidth: 1,
+      borderRadius: 4,
+    }];
+    if (sfProj) {
+      dlDatasets.push({
+        label: 'SourceForge',
+        data: releasesReversed.map(r => sfRelDl(r)),
+        backgroundColor: '#ffa65766',
+        borderColor: '#ffa657',
+        borderWidth: 1,
+        borderRadius: 4,
+      });
+    }
+    new Chart(document.getElementById('chartReleaseDl'), {
+      type: 'bar',
+      data: {
+        labels: releasesReversed.map(r => r.tag_name),
+        datasets: dlDatasets
+      },
+      options: {
+        plugins: { legend: { display: !!sfProj, labels: { boxWidth: 12, font: { size: 11 } } } },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { stacked: true, grid: { color: '#30363d33' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  // Asset downloads per release (line chart like gh-release-stats)
+  if (releases.length > 0) {
+    const lineColors = ['#58a6ff','#3fb950','#FA4016','#d2a8ff','#e3b341','#ff7b72','#79c0ff','#7ee787','#ffa657','#bc8cff','#56d4dd','#f2cc60'];
+    const sortedReleases = [...releases].reverse();
+    const labels = sortedReleases.map(r => r.tag_name);
+
+    // Normalize asset names to group across releases
+    function normalizeAssetName(name) {
+      return name
+        .replace(/[-_]?v?\d+\.\d+(\.\d+)*/g, '')
+        .replace(/--+/g, '-').replace(/__+/g, '_')
+        .replace(/^[-_]+|[-_]+$/g, '');
+    }
+
+    // Collect unique normalized asset names (hash files excluded)
+    const normalizedSet = new Set();
+    sortedReleases.forEach(r => countableAssets(r).forEach(a => normalizedSet.add(normalizeAssetName(a.name))));
+    const assetGroups = [...normalizedSet].filter(n => n.length > 0);
+
+    // One line per asset group
+    const datasets = assetGroups.map((group, i) => {
+      const color = lineColors[i % lineColors.length];
+      return {
+        label: group,
+        data: sortedReleases.map(r => {
+          return countableAssets(r)
+            .filter(a => normalizeAssetName(a.name) === group)
+            .reduce((sum, a) => sum + a.download_count, 0);
+        }),
+        borderColor: color,
+        backgroundColor: color + '22',
+        pointBackgroundColor: color,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 2,
+        tension: 0.2,
+        fill: false,
+      };
+    });
+
+    // SourceForge line (per-release folder totals)
+    if (sfProj) {
+      datasets.push({
+        label: 'SourceForge',
+        data: sortedReleases.map(r => sfRelDl(r)),
+        borderColor: '#ffa657',
+        backgroundColor: '#ffa65722',
+        pointBackgroundColor: '#ffa657',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 2,
+        tension: 0.2,
+        fill: false,
+      });
+    }
+
+    // Add a "Total" line (GitHub + SourceForge)
+    datasets.push({
+      label: 'Total',
+      data: sortedReleases.map(r => releaseDownloads(r) + sfRelDl(r)),
+      borderColor: '#e6edf3',
+      backgroundColor: '#e6edf322',
+      pointBackgroundColor: '#e6edf3',
+      pointRadius: 5,
+      pointHoverRadius: 7,
+      borderWidth: 2.5,
+      borderDash: [6, 3],
+      tension: 0.2,
+      fill: false,
+    });
+
+    new Chart(document.getElementById('chartDlTimeline'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+          tooltip: {
+            filter: ctx => ctx.parsed.y > 0,
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} DL`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: '#30363d22' },
+            ticks: { font: { size: 10 } },
+            title: { display: true, text: 'Release Tags', color: '#8b949e', font: { size: 11 } }
+          },
+          y: {
+            grid: { color: '#30363d33' },
+            beginAtZero: true,
+            title: { display: true, text: 'Downloads', color: '#8b949e', font: { size: 11 } }
+          }
+        }
+      }
+    });
+  }
+
+  if (participation && participation.owner) {
+    const labels = participation.owner.map((_, i) => `S${i+1}`);
+    new Chart(document.getElementById('chartParticipation'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Owner',
+            data: participation.owner,
+            borderColor: '#58a6ff',
+            backgroundColor: '#58a6ff22',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+          },
+          {
+            label: 'Others',
+            data: participation.all.map((v, i) => v - participation.owner[i]),
+            borderColor: '#3fb950',
+            backgroundColor: '#3fb95022',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+          }
+        ]
+      },
+      options: {
+        plugins: { legend: { labels: { boxWidth: 12, padding: 12 } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+          y: { grid: { color: '#30363d33' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+}
+
+// ---- LANDING ----
+
+function parseGhUser(input) {
+  input = (input || '').trim();
+  const m = input.match(/github\.com\/([A-Za-z0-9-]+)/i);
+  if (m) return m[1];
+  const clean = input.replace(/^@/, '');
+  return /^[A-Za-z0-9-]+$/.test(clean) ? clean : null;
+}
+
+function parseSfUser(input) {
+  input = (input || '').trim();
+  if (!input) return '';
+  const m = input.match(/sourceforge\.net\/u\/([A-Za-z0-9_.-]+)/i);
+  if (m) return m[1];
+  return /^[A-Za-z0-9_.-]+$/.test(input) ? input : '';
+}
+
+function renderLanding() {
+  document.getElementById('breadcrumb').innerHTML = '';
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="landing">
+    <h2>📊 GitHub Release Stats</h2>
+    <p>Releases, downloads, stars and activity for any GitHub account — with SourceForge mirror downloads automatically detected and added (projects are matched by name).</p>
+    <div class="landing-form">
+      <label>GitHub profile <span class="req">required</span></label>
+      <input type="text" id="ghInput" placeholder="https://github.com/username or username">
+      <label>SourceForge profile <span class="opt">optional — adds mirror downloads</span></label>
+      <input type="text" id="sfInput" placeholder="https://sourceforge.net/u/username/profile">
+      <label>GitHub token <span class="opt">optional</span></label>
+      <input type="password" id="tokenInput" placeholder="ghp_... or github_pat_..." autocomplete="off">
+      <button class="btn btn-primary" id="goBtn">View stats</button>
+      <p class="landing-error" id="landingError"></p>
+      <p class="landing-note">🔒 <strong>Token security:</strong> this page has no backend. Your token is stored only in this browser (localStorage) and sent only to <code>api.github.com</code> — never anywhere else. It never appears in the URL. Clear the field and submit again to remove it.</p>
+      <p class="landing-note">Without a token: public repos only, 60 API requests/hour (cached 30 min). With a token: 5,000 requests/hour — and if the token belongs to the profile you enter, your <strong>private repos</strong> are included too. A fine-grained read-only token is recommended.</p>
+    </div>
+  </div>`;
+  document.getElementById('goBtn').addEventListener('click', submitLanding);
+  app.querySelectorAll('input').forEach(el =>
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') submitLanding(); })
+  );
+}
+
+function submitLanding() {
+  const gh = parseGhUser(document.getElementById('ghInput').value);
+  const sf = parseSfUser(document.getElementById('sfInput').value);
+  if (!gh) {
+    document.getElementById('landingError').textContent = 'Please enter a valid GitHub profile (link or username).';
+    return;
+  }
+  const token = document.getElementById('tokenInput').value.trim();
+  try { token ? localStorage.setItem('ght_token', token) : localStorage.removeItem('ght_token'); } catch {}
+  window.location.hash = `gh=${encodeURIComponent(gh)}${sf ? `&sf=${encodeURIComponent(sf)}` : ''}`;
+}
+
+// ---- NAVIGATION (shareable hash: #gh=user&sf=user&repo=name) ----
+
+function baseHash() {
+  let h = `gh=${encodeURIComponent(state.gh)}`;
+  if (state.sf) h += `&sf=${encodeURIComponent(state.sf)}`;
+  return h;
+}
+
+function navigateHome() { window.location.hash = ''; }
+function navigateDash() { window.location.hash = baseHash(); }
+function navigateToRepo(name) { window.location.hash = `${baseHash()}&repo=${encodeURIComponent(name)}`; }
+
+function handleRoute() {
+  const p = new URLSearchParams(window.location.hash.slice(1));
+  const gh = p.get('gh');
+  if (!gh) { renderLanding(); return; }
+  if (gh !== state.gh || (p.get('sf') || '') !== state.sf) state.sfMap = null;
+  state.gh = gh;
+  state.sf = p.get('sf') || '';
+  const repo = p.get('repo');
+  if (repo) renderRepoDetail(repo); else renderDashboard();
+}
+
+window.addEventListener('hashchange', handleRoute);
+
+// Init
+handleRoute();
+</script>
+
+</body>
+</html>
