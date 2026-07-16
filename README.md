@@ -17,9 +17,11 @@ Download counts are scattered. A project released on GitHub and mirrored on Sour
 | | As main profile | As mirror (adds download counts) |
 |---|:---:|:---:|
 | **GitHub** | ✅ | ✅ |
-| **Codeberg** (Forgejo/Gitea) | ✅ | ✅ |
-| **GitLab** | ✅ ¹ | ❌ ¹ |
+| **Codeberg** and self-hosted **Gitea / Forgejo** | ✅ | ✅ |
+| **GitLab** (gitlab.com or self-hosted) | ✅ ¹ | ❌ ¹ |
 | **SourceForge** | ❌ ² | ✅ |
+
+Self-hosted instances: prefix the URL with its engine — `gitea:https://git.example.com/username` or `gitlab:https://gitlab.example.com/username`.
 
 ¹ GitLab does not track download counts on release assets ([known limitation](https://gitlab.com/gitlab-org/gitlab/-/issues/223338)). A GitLab main profile still shows repos, stars, releases and languages — and gets download numbers from its mirrors.
 ² SourceForge has no stars/forks/release metadata to build a dashboard from, so it works as a mirror only.
@@ -29,7 +31,9 @@ Download counts are scattered. A project released on GitHub and mirrored on Sour
 - **100% static, no backend.** A single HTML file. All API calls go directly from your browser to the forges' public APIs (they all allow CORS).
 - **Mirror matching by name.** `UnityGameTranslator` on GitHub ↔ `unitygametranslator` on SourceForge — names are normalized (lowercase, alphanumeric) and matched automatically from the mirror profile's project list.
 - **Per-release aggregation.** Mirror downloads are matched to release tags: GitHub/Codeberg mirrors by release tag, SourceForge by file folder named after the tag (e.g. `/files/v1.2.3/`).
-- **Shareable URLs.** `#main=github:user&mirrors=sourceforge:user,codeberg:user` — send your stats page to anyone.
+- **Shareable URLs.** `#main=github:user&mirrors=sourceforge:user,codeberg:user` — send your stats page to anyone. A repository URL as input (`github.com/user/repo`) jumps straight to that repo's page.
+- **Local history.** Each visit records a daily snapshot of the numbers in your browser — revisit over time and evolution charts (downloads, stars) build up automatically. Stored locally only, nothing is sent anywhere.
+- **Export.** Download the repo list or the release table as CSV or JSON.
 - **Cached.** API responses are cached in localStorage for 30 minutes to stay within anonymous rate limits.
 
 Repository view — total downloads across all sources, with the per-release GitHub/SourceForge breakdown in the stacked chart:
